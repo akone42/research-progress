@@ -1,4 +1,4 @@
-# Research Assistantship
+# Research Progress
 
 Notes, notebooks, and code tracking my progress during my research assistantship.
 
