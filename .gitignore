@@ -8,3 +8,6 @@ venv/
 # downloaded datasets
 data/
 notebooks/data/
+
+# model checkpoints from training runs
+notebooks/checkpoints/
