@@ -1,0 +1,26 @@
+[
+ {
+  "model":"gru_attention",
+  "decoding":"greedy",
+  "test BLEU":36.57,
+  "decode seconds":0.6
+ },
+ {
+  "model":"gru_attention",
+  "decoding":"beam",
+  "test BLEU":37.42,
+  "decode seconds":21.0
+ },
+ {
+  "model":"transformer",
+  "decoding":"greedy",
+  "test BLEU":38.11,
+  "decode seconds":9.3
+ },
+ {
+  "model":"transformer",
+  "decoding":"beam",
+  "test BLEU":37.42,
+  "decode seconds":87.9
+ }
+]
