@@ -46,14 +46,16 @@ class Conversation:
     targets:  (T, 7) standardized features of turns 1..T
     observed: (T, 7) True where the target value was actually measured
     tokens:   word ids of the input turns, concatenated; turn_lengths says how many belong to each row
+    turn_type: (T,) for each target turn: 0 = first turn, 1 = same speaker continues, 2 = speaker change
     """
 
-    def __init__(self, inputs, targets, observed, tokens, turn_lengths):
+    def __init__(self, inputs, targets, observed, tokens, turn_lengths, turn_type):
         self.inputs = torch.from_numpy(inputs)
         self.targets = torch.from_numpy(targets)
         self.observed = torch.from_numpy(observed)
         self.tokens = torch.from_numpy(tokens)
         self.turn_lengths = torch.from_numpy(turn_lengths)
+        self.turn_type = torch.from_numpy(turn_type)
 
     def __len__(self):
         return len(self.targets)
@@ -72,6 +74,7 @@ def build_conversations(df, conv_ids, mean, std, vocab):
     token_lists = [np.array([vocab.get(w, UNK_ID) for w in text.split()], dtype=np.int64)
                    for text in part["text"].fillna("")]
 
+    sides = part["side"].to_numpy()
     conversations = []
     bounds = np.flatnonzero(np.diff(part["conv_id"].to_numpy())) + 1
     for start, end in zip(np.r_[0, bounds], np.r_[bounds, len(part)]):
@@ -83,6 +86,7 @@ def build_conversations(df, conv_ids, mean, std, vocab):
             observed=~missing[start:end],
             tokens=np.concatenate(turn_tokens),
             turn_lengths=np.array([len(t) for t in turn_tokens], dtype=np.int64),
+            turn_type=np.r_[0, np.where(sides[start + 1:end] == sides[start:end - 1], 1, 2)].astype(np.int64),
         ))
     return conversations
 
@@ -110,12 +114,14 @@ def collate_conversations(batch):
     inputs = torch.zeros(size, max_len, batch[0].inputs.shape[1])
     targets = torch.zeros(size, max_len, N_FEAT)
     observed = torch.zeros(size, max_len, N_FEAT, dtype=torch.bool)
+    turn_type = torch.full((size, max_len), -1, dtype=torch.long)  # -1 = padding
     tokens, token_turn = [], []
     for i, c in enumerate(batch):
         n = len(c)
         inputs[i, :n] = c.inputs
         targets[i, :n] = c.targets
         observed[i, :n] = c.observed
+        turn_type[i, :n] = c.turn_type
         tokens.append(c.tokens)
         token_turn.append(i * max_len + torch.repeat_interleave(torch.arange(n), c.turn_lengths))
     return {
@@ -123,6 +129,7 @@ def collate_conversations(batch):
         "targets": targets,
         "observed": observed,
         "lengths": lengths,
+        "turn_type": turn_type,
         "tokens": torch.cat(tokens),
         "token_turn": torch.cat(token_turn),
     }
